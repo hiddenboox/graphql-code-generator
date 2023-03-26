@@ -948,25 +948,62 @@ export class BaseResolversVisitor<
 
       if (isInterfaceType(schemaType)) {
         const allTypesMap = this._schema.getTypeMap();
-        const implementingTypes: string[] = [];
+        const implementingTypes: GraphQLObjectType[] = [];
 
         for (const graphqlType of Object.values(allTypesMap)) {
           if (graphqlType instanceof GraphQLObjectType) {
             const allInterfaces = graphqlType.getInterfaces();
 
             if (allInterfaces.some(int => int.name === schemaType.name)) {
-              implementingTypes.push(graphqlType.name);
+              implementingTypes.push(graphqlType);
             }
           }
         }
 
         const possibleTypes =
           implementingTypes
-            .map(name => {
+            .map(type => {
+              // TODO: eddeee888 maybe extract this
+              const isTypeMapped = this.config.mappers[type.name];
+              // 1. If mapped without placehoder, just use it without doing extra checks
+              if (isTypeMapped && !hasPlaceholder(isTypeMapped.type)) {
+                return isTypeMapped.type;
+              }
+
+              // 2. Work out value for type
+              // 2a. By default, use the typescript type
+              let typeValue = this.convertName(type.name, {}, true);
+
+              // 2b. Find fields to Omit if needed.
+              //  - If no field to Omit, "type with maybe Omit" is typescript type i.e. no Omit
+              //  - If there are fields to Omit, keep track of these "type with maybe Omit" to replace in original unionMemberValue
+              const fieldsToOmit = this.getRelevantFieldsToOmit({
+                schemaType: type,
+                getTypeToUse: baseType => `RefType['${baseType}']`,
+              }); // TODO: eddeee888 check this getTypeToUse type!!!
+              if (fieldsToOmit.length > 0) {
+                typeValue = this.replaceFieldsInType(typeValue, fieldsToOmit);
+              }
+
+              // 2c. If type is mapped with placeholder, use the "type with maybe Omit" as {T}
+              if (isTypeMapped && hasPlaceholder(isTypeMapped.type)) {
+                return replacePlaceholder(isTypeMapped.type, typeValue);
+              }
+
+              // 2d. If has default mapper with placeholder, use the "type with maybe Omit" as {T}
+              const hasDefaultMapper = !!this.config.defaultMapper?.type;
+              const isScalar = this.config.scalars[typeName];
+              if (hasDefaultMapper && hasPlaceholder(this.config.defaultMapper.type)) {
+                const finalTypename = isScalar ? this._getScalar(typeName) : typeValue;
+                return replacePlaceholder(this.config.defaultMapper.type, finalTypename);
+              }
+
               const nonOptionalTypenameModifier = this.config.resolversNonOptionalTypename.interfaceImplementingType
-                ? ` & { __typename: '${name}' }`
+                ? ` & { __typename: '${type.name}' }`
                 : '';
-              return `( ${name}${nonOptionalTypenameModifier} )`;
+              // ENDTODO
+
+              return `( ${typeValue}${nonOptionalTypenameModifier} )`;
             })
             .join(' | ') || 'never'; // Must wrap every interface implementing type in explicit "( )" to separate them
 
@@ -1079,7 +1116,7 @@ export class BaseResolversVisitor<
     return new DeclarationBlock(this._declarationBlockConfig)
       .export()
       .asKind(declarationKind)
-      .withName(this.convertName('ResolversInterfaceTypes'))
+      .withName(this.convertName('ResolversInterfaceTypes'), `<RefType = Record<string, unknown>>`)
       .withComment('Mapping of interface types')
       .withBlock(
         Object.entries(this._resolversInterfaceTypes)
