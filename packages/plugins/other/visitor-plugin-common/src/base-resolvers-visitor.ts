@@ -634,6 +634,7 @@ export class BaseResolversVisitor<
       applyWrapper: type => this.applyResolverTypeWrapper(type),
       clearWrapper: type => this.clearResolverTypeWrapper(type),
       getTypeToUse: name => this.getTypeToUse(name),
+      currentType: 'ResolversTypes',
       referencedUnionType: 'ResolversUnionTypes',
     });
     this._resolversParentTypes = this.createResolversFields({
@@ -641,6 +642,7 @@ export class BaseResolversVisitor<
       clearWrapper: type => type,
       getTypeToUse: name => this.getParentTypeToUse(name),
       referencedUnionType: 'ResolversUnionParentTypes',
+      currentType: 'ResolversParentTypes',
       shouldInclude: namedType => !isEnumType(namedType),
     });
     this._resolversUnionTypes = this.createResolversUnionTypes({
@@ -718,12 +720,14 @@ export class BaseResolversVisitor<
     clearWrapper,
     getTypeToUse,
     referencedUnionType,
+    currentType,
     shouldInclude,
   }: {
     applyWrapper: (str: string) => string;
     clearWrapper: (str: string) => string;
     getTypeToUse: (str: string) => string;
     referencedUnionType: 'ResolversUnionTypes' | 'ResolversUnionParentTypes';
+    currentType: 'ResolversTypes' | 'ResolversParentTypes';
     shouldInclude?: (type: GraphQLNamedType) => boolean;
   }): ResolverTypes {
     const allSchemaTypes = this._schema.getTypeMap();
@@ -762,7 +766,8 @@ export class BaseResolversVisitor<
       } else if (isInterfaceType(schemaType)) {
         this._hasReferencedResolversInterfaceTypes = true;
         const type = this.convertName('ResolversInterfaceTypes');
-        prev[typeName] = applyWrapper(`${type}['${typeName}']`);
+        const generic = this.convertName(currentType);
+        prev[typeName] = applyWrapper(`${type}<${generic}>['${typeName}']`);
         return prev;
       } else if (isEnumType(schemaType) && this.config.enumValues[typeName]) {
         prev[typeName] =
@@ -1116,7 +1121,7 @@ export class BaseResolversVisitor<
     return new DeclarationBlock(this._declarationBlockConfig)
       .export()
       .asKind(declarationKind)
-      .withName(this.convertName('ResolversInterfaceTypes'), `<RefType = Record<string, unknown>>`)
+      .withName(this.convertName('ResolversInterfaceTypes'), `<RefType extends Record<string, unknown>>`)
       .withComment('Mapping of interface types')
       .withBlock(
         Object.entries(this._resolversInterfaceTypes)

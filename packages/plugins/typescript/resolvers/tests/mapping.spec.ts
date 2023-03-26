@@ -20,7 +20,7 @@ describe('ResolversTypes', () => {
       };
     `);
     expect(result.content).toBeSimilarStringTo(`
-      export type ResolversInterfaceTypes<RefType = Record<string, unknown>> = {
+      export type ResolversInterfaceTypes<RefType extends Record<string, unknown>> = {
         Node: ( SomeNode );
         AnotherNode: ( Omit<AnotherNodeWithChild, 'unionChild'> & { unionChild?: Maybe<RefType['ChildUnion']> } ) | ( Omit<AnotherNodeWithAll, 'unionChild' | 'unionChildren'> & { unionChild?: Maybe<RefType['ChildUnion']>, unionChildren: Array<RefType['ChildUnion']> } );
         WithChild: ( Omit<AnotherNodeWithChild, 'unionChild'> & { unionChild?: Maybe<RefType['ChildUnion']> } ) | ( Omit<AnotherNodeWithAll, 'unionChild' | 'unionChildren'> & { unionChild?: Maybe<RefType['ChildUnion']>, unionChildren: Array<RefType['ChildUnion']> } );
