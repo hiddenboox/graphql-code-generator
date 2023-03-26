@@ -164,6 +164,11 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
   info: GraphQLResolveInfo
 ) => TResult | Promise<TResult>;
 
+/** Mapping of interface types */
+export type ResolversInterfaceTypes<RefType extends Record<string, unknown>> = ResolversObject<{
+  Node: ( RefType['SomeNode'] );
+}>;
+
 /** Mapping of union types */
 export type ResolversUnionTypes = ResolversObject<{
   ChildUnion: ( Child ) | ( MyOtherType );
@@ -185,7 +190,7 @@ export type ResolversTypes = ResolversObject<{
   ChildUnion: ResolverTypeWrapper<ResolversUnionTypes['ChildUnion']>;
   Query: ResolverTypeWrapper<{}>;
   Subscription: ResolverTypeWrapper<{}>;
-  Node: ResolversTypes['SomeNode'];
+  Node: ResolversInterfaceTypes<ResolversTypes>['Node'];
   ID: ResolverTypeWrapper<Scalars['ID']>;
   SomeNode: ResolverTypeWrapper<SomeNode>;
   AnotherNode: ResolversTypes['AnotherNodeWithChild'] | ResolversTypes['AnotherNodeWithAll'];
@@ -208,7 +213,7 @@ export type ResolversParentTypes = ResolversObject<{
   ChildUnion: ResolversUnionParentTypes['ChildUnion'];
   Query: {};
   Subscription: {};
-  Node: ResolversParentTypes['SomeNode'];
+  Node: ResolversInterfaceTypes<ResolversParentTypes>['Node'];
   ID: Scalars['ID'];
   SomeNode: SomeNode;
   AnotherNode: ResolversParentTypes['AnotherNodeWithChild'] | ResolversParentTypes['AnotherNodeWithAll'];
@@ -421,6 +426,11 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
   info: GraphQLResolveInfo
 ) => TResult | Promise<TResult>;
 
+/** Mapping of interface types */
+export type ResolversInterfaceTypes<RefType extends Record<string, unknown>> = ResolversObject<{
+  Node: ( RefType['SomeNode'] );
+}>;
+
 /** Mapping of union types */
 export type ResolversUnionTypes = ResolversObject<{
   ChildUnion: ( Types.Child ) | ( Types.MyOtherType );
@@ -442,7 +452,7 @@ export type ResolversTypes = ResolversObject<{
   ChildUnion: ResolverTypeWrapper<ResolversUnionTypes['ChildUnion']>;
   Query: ResolverTypeWrapper<{}>;
   Subscription: ResolverTypeWrapper<{}>;
-  Node: ResolversTypes['SomeNode'];
+  Node: ResolversInterfaceTypes<ResolversTypes>['Node'];
   ID: ResolverTypeWrapper<Types.Scalars['ID']>;
   SomeNode: ResolverTypeWrapper<Types.SomeNode>;
   AnotherNode: ResolversTypes['AnotherNodeWithChild'] | ResolversTypes['AnotherNodeWithAll'];
@@ -465,7 +475,7 @@ export type ResolversParentTypes = ResolversObject<{
   ChildUnion: ResolversUnionParentTypes['ChildUnion'];
   Query: {};
   Subscription: {};
-  Node: ResolversParentTypes['SomeNode'];
+  Node: ResolversInterfaceTypes<ResolversParentTypes>['Node'];
   ID: Types.Scalars['ID'];
   SomeNode: Types.SomeNode;
   AnotherNode: ResolversParentTypes['AnotherNodeWithChild'] | ResolversParentTypes['AnotherNodeWithAll'];
@@ -762,6 +772,11 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
   info?: GraphQLResolveInfo
 ) => TResult | Promise<TResult>;
 
+/** Mapping of interface types */
+export type ResolversInterfaceTypes<RefType extends Record<string, unknown>> = ResolversObject<{
+  Node: ( RefType['SomeNode'] );
+}>;
+
 /** Mapping of union types */
 export type ResolversUnionTypes = ResolversObject<{
   ChildUnion: ( Child ) | ( MyOtherType );
@@ -783,7 +798,7 @@ export type ResolversTypes = ResolversObject<{
   ChildUnion: ResolverTypeWrapper<ResolversUnionTypes['ChildUnion']>;
   Query: ResolverTypeWrapper<{}>;
   Subscription: ResolverTypeWrapper<{}>;
-  Node: ResolversTypes['SomeNode'];
+  Node: ResolversInterfaceTypes<ResolversTypes>['Node'];
   ID: ResolverTypeWrapper<Scalars['ID']>;
   SomeNode: ResolverTypeWrapper<SomeNode>;
   AnotherNode: ResolversTypes['AnotherNodeWithChild'] | ResolversTypes['AnotherNodeWithAll'];
@@ -806,7 +821,7 @@ export type ResolversParentTypes = ResolversObject<{
   ChildUnion: ResolversUnionParentTypes['ChildUnion'];
   Query: {};
   Subscription: {};
-  Node: ResolversParentTypes['SomeNode'];
+  Node: ResolversInterfaceTypes<ResolversParentTypes>['Node'];
   ID: Scalars['ID'];
   SomeNode: SomeNode;
   AnotherNode: ResolversParentTypes['AnotherNodeWithChild'] | ResolversParentTypes['AnotherNodeWithAll'];

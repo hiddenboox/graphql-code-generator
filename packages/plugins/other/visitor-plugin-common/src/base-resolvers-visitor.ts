@@ -569,8 +569,10 @@ export class BaseResolversVisitor<
   protected _resolversParentTypes: ResolverParentTypes = {};
   protected _hasReferencedResolversUnionTypes = false;
   protected _hasReferencedResolversUnionParentTypes = false;
+  protected _hasReferencedResolversInterfaceTypes = false;
   protected _resolversUnionTypes: Record<string, string> = {};
   protected _resolversUnionParentTypes: Record<string, string> = {};
+  protected _resolversInterfaceTypes: Record<string, string> = {};
   protected _rootTypeNames = new Set<string>();
   protected _globalDeclarations = new Set<string>();
   protected _federation: ApolloFederation;
@@ -647,6 +649,7 @@ export class BaseResolversVisitor<
     this._resolversUnionParentTypes = this.createResolversUnionTypes({
       getTypeToUse: this.getParentTypeToUse,
     });
+    this._resolversInterfaceTypes = this.createResolversInterfaceTypes();
     this._fieldContextTypeMap = this.createFieldContextTypeMap();
     this._directiveContextTypesMap = this.createDirectivedContextType();
     this._directiveResolverMappings = rawConfig.directiveResolverMappings ?? {};
@@ -757,22 +760,9 @@ export class BaseResolversVisitor<
         this.markMapperAsUsed(typeName);
         prev[typeName] = applyWrapper(this.config.mappers[typeName].type);
       } else if (isInterfaceType(schemaType)) {
-        const allTypesMap = this._schema.getTypeMap();
-        const implementingTypes: string[] = [];
-
-        for (const graphqlType of Object.values(allTypesMap)) {
-          if (graphqlType instanceof GraphQLObjectType) {
-            const allInterfaces = graphqlType.getInterfaces();
-
-            if (allInterfaces.some(int => int.name === schemaType.name)) {
-              implementingTypes.push(graphqlType.name);
-            }
-          }
-        }
-
-        const possibleTypes = implementingTypes.map(name => getTypeToUse(name)).join(' | ') || 'never';
-
-        prev[typeName] = possibleTypes;
+        this._hasReferencedResolversInterfaceTypes = true;
+        const type = this.convertName('ResolversInterfaceTypes');
+        prev[typeName] = applyWrapper(`${type}['${typeName}']`);
         return prev;
       } else if (isEnumType(schemaType) && this.config.enumValues[typeName]) {
         prev[typeName] =
@@ -945,6 +935,50 @@ export class BaseResolversVisitor<
     return unionTypes;
   }
 
+  protected createResolversInterfaceTypes(): Record<string, string> {
+    if (!this._hasReferencedResolversInterfaceTypes) {
+      return {};
+    }
+
+    const allSchemaTypes = this._schema.getTypeMap();
+    const typeNames = this._federation.filterTypeNames(Object.keys(allSchemaTypes));
+
+    const interfaceTypes = typeNames.reduce((res, typeName) => {
+      const schemaType = allSchemaTypes[typeName];
+
+      if (isInterfaceType(schemaType)) {
+        const allTypesMap = this._schema.getTypeMap();
+        const implementingTypes: string[] = [];
+
+        for (const graphqlType of Object.values(allTypesMap)) {
+          if (graphqlType instanceof GraphQLObjectType) {
+            const allInterfaces = graphqlType.getInterfaces();
+
+            if (allInterfaces.some(int => int.name === schemaType.name)) {
+              implementingTypes.push(graphqlType.name);
+            }
+          }
+        }
+
+        const possibleTypes =
+          implementingTypes
+            .map(name => {
+              const nonOptionalTypenameModifier = this.config.resolversNonOptionalTypename.interfaceImplementingType
+                ? ` & { __typename: '${name}' }`
+                : '';
+              return `( ${name}${nonOptionalTypenameModifier} )`;
+            })
+            .join(' | ') || 'never'; // Must wrap every interface implementing type in explicit "( )" to separate them
+
+        res[typeName] = possibleTypes;
+      }
+
+      return res;
+    }, {});
+
+    return interfaceTypes;
+  }
+
   protected createFieldContextTypeMap(): FieldContextTypeMap {
     return this.config.fieldContextTypes.reduce<FieldContextTypeMap>((prev, fieldContextType) => {
       const items = fieldContextType.split('#');
@@ -1031,6 +1065,24 @@ export class BaseResolversVisitor<
       .withComment('Mapping of union parent types')
       .withBlock(
         Object.entries(this._resolversUnionParentTypes)
+          .map(([typeName, value]) => indent(`${typeName}: ${value}${this.getPunctuation(declarationKind)}`))
+          .join('\n')
+      ).string;
+  }
+
+  public buildResolversInterfaceTypes(): string {
+    if (Object.keys(this._resolversInterfaceTypes).length === 0) {
+      return '';
+    }
+
+    const declarationKind = 'type';
+    return new DeclarationBlock(this._declarationBlockConfig)
+      .export()
+      .asKind(declarationKind)
+      .withName(this.convertName('ResolversInterfaceTypes'))
+      .withComment('Mapping of interface types')
+      .withBlock(
+        Object.entries(this._resolversInterfaceTypes)
           .map(([typeName, value]) => indent(`${typeName}: ${value}${this.getPunctuation(declarationKind)}`))
           .join('\n')
       ).string;
@@ -1648,6 +1700,7 @@ function normalizeResolversNonOptionalTypename(
   if (typeof input === 'boolean') {
     return {
       unionMember: input,
+      interfaceImplementingType: input,
     };
   }
 

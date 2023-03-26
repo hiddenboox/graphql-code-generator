@@ -245,6 +245,11 @@ export type MyTypeResolvers<ContextType = any, ParentType extends ResolversParen
           MyUnion: ( Omit<MyType, 'unionChild'> & { unionChild?: Maybe<ResolversParentTypes['ChildUnion']> } & { __typename: "MyType" } ) | ( MyOtherType & { __typename: "MyOtherType" } );
         };
       `);
+      expect(result.content).toBeSimilarStringTo(`
+        export type ResolversInterfaceTypes<RefType extends Record<string, unknown>> = {
+          Node: ( RefType['SomeNode'] & { __typename: 'SomeNode' } );
+        };
+      `);
     });
 
     it('resolversNonOptionalTypename - adds non-optional typenames to ResolversUnionTypes', async () => {
@@ -265,6 +270,21 @@ export type MyTypeResolvers<ContextType = any, ParentType extends ResolversParen
         export type ResolversUnionParentTypes = {
           ChildUnion: ( Child & { __typename: "Child" } ) | ( MyOtherType & { __typename: "MyOtherType" } );
           MyUnion: ( Omit<MyType, 'unionChild'> & { unionChild?: Maybe<ResolversParentTypes['ChildUnion']> } & { __typename: "MyType" } ) | ( MyOtherType & { __typename: "MyOtherType" } );
+        };
+      `);
+    });
+
+    it('resolversNonOptionalTypename - adds non-optional typenames to ResolversInterfaceTypes', async () => {
+      const result = await plugin(
+        resolversTestingSchema,
+        [],
+        { resolversNonOptionalTypename: { interfaceImplementingType: true } },
+        { outputFile: '' }
+      );
+
+      expect(result.content).toBeSimilarStringTo(`
+        export type ResolversInterfaceTypes<RefType extends Record<string, unknown>> = {
+          Node: ( RefType['SomeNode'] & { __typename: 'SomeNode' } );
         };
       `);
     });
@@ -1904,6 +1924,169 @@ export type ResolverFn<TResult, TParent, TContext, TArgs> = (
 
     expect(content.content).not.toBeSimilarStringTo(`export type ResolversUnionTypes`);
     expect(content.content).not.toBeSimilarStringTo(`export type ResolversUnionParentTypes`);
+  });
+
+  it('should generate ResolversInterfaceTypes', async () => {
+    const testSchema = buildSchema(/* GraphQL */ `
+      type Query {
+        character(id: ID!): CharacterNode
+      }
+
+      interface CharacterNode {
+        id: ID!
+      }
+
+      interface MainCharacter {
+        screenName: String!
+      }
+
+      type Wizard implements CharacterNode & MainCharacter {
+        id: ID!
+        screenName: String!
+        spells: [String!]!
+      }
+
+      type Fighter implements CharacterNode & MainCharacter {
+        id: ID!
+        screenName: String!
+        powerLevel: Int!
+      }
+
+      type ExtraCharacter implements CharacterNode {
+        id: ID!
+        creditName: String!
+      }
+    `);
+    const content = await plugin(testSchema, [], {}, { outputFile: 'graphql.ts' });
+
+    expect(content.content).toBeSimilarStringTo(`
+      export type ResolversInterfaceTypes = {
+        CharacterNode: ( Wizard ) | ( Fighter ) | ( ExtraCharacter );
+        MainCharacter: ( Wizard ) | ( Fighter );
+      };
+    `);
+
+    expect(content.content).toBeSimilarStringTo(`
+      export type ResolversTypes = {
+        Query: ResolverTypeWrapper<{}>;
+        ID: ResolverTypeWrapper<Scalars['ID']>;
+        CharacterNode: ResolverTypeWrapper<ResolversInterfaceTypes['CharacterNode']>;
+        MainCharacter: ResolverTypeWrapper<ResolversInterfaceTypes['MainCharacter']>;
+        String: ResolverTypeWrapper<Scalars['String']>;
+        Wizard: ResolverTypeWrapper<Wizard>;
+        Fighter: ResolverTypeWrapper<Fighter>;
+        Int: ResolverTypeWrapper<Scalars['Int']>;
+        ExtraCharacter: ResolverTypeWrapper<ExtraCharacter>;
+        Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
+      };
+    `);
+
+    expect(content.content).toBeSimilarStringTo(`
+      export type ResolversParentTypes = {
+        Query: {};
+        ID: Scalars['ID'];
+        CharacterNode: ResolversInterfaceTypes['CharacterNode'];
+        MainCharacter: ResolversInterfaceTypes['MainCharacter'];
+        String: Scalars['String'];
+        Wizard: Wizard;
+        Fighter: Fighter;
+        Int: Scalars['Int'];
+        ExtraCharacter: ExtraCharacter;
+        Boolean: Scalars['Boolean'];
+      };
+    `);
+  });
+
+  it('should generate ResolversInterfaceTypes with transformed type names correctly', async () => {
+    const testSchema = buildSchema(/* GraphQL */ `
+      type Query {
+        character(id: ID!): CharacterNode
+      }
+
+      interface CharacterNode {
+        id: ID!
+      }
+
+      interface MainCharacter {
+        screenName: String!
+      }
+
+      type Wizard implements CharacterNode & MainCharacter {
+        id: ID!
+        screenName: String!
+        spells: [String!]!
+      }
+
+      type Fighter implements CharacterNode & MainCharacter {
+        id: ID!
+        screenName: String!
+        powerLevel: Int!
+      }
+
+      type ExtraCharacter implements CharacterNode {
+        id: ID!
+        creditName: String!
+      }
+    `);
+    const content = await plugin(
+      testSchema,
+      [],
+      { typesPrefix: 'I_', typesSuffix: '_Types' },
+      { outputFile: 'graphql.ts' }
+    );
+
+    expect(content.content).toBeSimilarStringTo(`
+      export type I_ResolversInterfaceTypes_Types = {
+        CharacterNode: ( Wizard ) | ( Fighter ) | ( ExtraCharacter );
+        MainCharacter: ( Wizard ) | ( Fighter );
+      };
+    `);
+
+    expect(content.content).toBeSimilarStringTo(`
+      export type I_ResolversTypes_Types = {
+        Query: ResolverTypeWrapper<{}>;
+        ID: ResolverTypeWrapper<Scalars['ID']>;
+        CharacterNode: ResolverTypeWrapper<I_ResolversInterfaceTypes_Types['CharacterNode']>;
+        MainCharacter: ResolverTypeWrapper<I_ResolversInterfaceTypes_Types['MainCharacter']>;
+        String: ResolverTypeWrapper<Scalars['String']>;
+        Wizard: ResolverTypeWrapper<I_Wizard_Types>;
+        Fighter: ResolverTypeWrapper<I_Fighter_Types>;
+        Int: ResolverTypeWrapper<Scalars['Int']>;
+        ExtraCharacter: ResolverTypeWrapper<I_ExtraCharacter_Types>;
+        Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
+      };
+    `);
+
+    expect(content.content).toBeSimilarStringTo(`
+      export type I_ResolversParentTypes_Types = {
+        Query: {};
+        ID: Scalars['ID'];
+        CharacterNode: I_ResolversInterfaceTypes_Types['CharacterNode'];
+        MainCharacter: I_ResolversInterfaceTypes_Types['MainCharacter'];
+        String: Scalars['String'];
+        Wizard: I_Wizard_Types;
+        Fighter: I_Fighter_Types;
+        Int: Scalars['Int'];
+        ExtraCharacter: I_ExtraCharacter_Types;
+        Boolean: Scalars['Boolean'];
+      };
+    `);
+  });
+
+  it('should NOT generate ResolversInterfaceTypes if there is no Interface', async () => {
+    const testSchema = buildSchema(/* GraphQL */ `
+      type Query {
+        user(id: ID!): User
+      }
+
+      type User {
+        id: ID!
+        fullName: String!
+      }
+    `);
+    const content = await plugin(testSchema, [], {}, { outputFile: 'graphql.ts' });
+
+    expect(content.content).not.toBeSimilarStringTo(`export type ResolversInterfaceTypes`);
   });
 
   it('should use correct value when rootValueType mapped as default', async () => {
