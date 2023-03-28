@@ -972,7 +972,7 @@ export class BaseResolversVisitor<
               const isTypeMapped = this.config.mappers[type.name];
               // 1. If mapped without placehoder, just use it without doing extra checks
               if (isTypeMapped && !hasPlaceholder(isTypeMapped.type)) {
-                return isTypeMapped.type;
+                return { typename: type.name, typeValue: isTypeMapped.type };
               }
 
               // 2. Work out value for type
@@ -992,7 +992,7 @@ export class BaseResolversVisitor<
 
               // 2c. If type is mapped with placeholder, use the "type with maybe Omit" as {T}
               if (isTypeMapped && hasPlaceholder(isTypeMapped.type)) {
-                return replacePlaceholder(isTypeMapped.type, typeValue);
+                return { typename: type.name, typeValue: replacePlaceholder(isTypeMapped.type, typeValue) };
               }
 
               // 2d. If has default mapper with placeholder, use the "type with maybe Omit" as {T}
@@ -1000,17 +1000,22 @@ export class BaseResolversVisitor<
               const isScalar = this.config.scalars[typeName];
               if (hasDefaultMapper && hasPlaceholder(this.config.defaultMapper.type)) {
                 const finalTypename = isScalar ? this._getScalar(typeName) : typeValue;
-                return replacePlaceholder(this.config.defaultMapper.type, finalTypename);
+                return {
+                  typename: type.name,
+                  typeValue: replacePlaceholder(this.config.defaultMapper.type, finalTypename),
+                };
               }
-
-              const nonOptionalTypenameModifier = this.config.resolversNonOptionalTypename.interfaceImplementingType
-                ? ` & { __typename: '${type.name}' }`
-                : '';
               // ENDTODO
-
-              return `( ${typeValue}${nonOptionalTypenameModifier} )`;
+              return { typename: type.name, typeValue };
             })
-            .join(' | ') || 'never'; // Must wrap every interface implementing type in explicit "( )" to separate them
+            .map(({ typename, typeValue }) => {
+              const nonOptionalTypenameModifier = this.config.resolversNonOptionalTypename.interfaceImplementingType
+                ? ` & { __typename: '${typename}' }`
+                : '';
+
+              return `( ${typeValue}${nonOptionalTypenameModifier} )`; // Must wrap every type in explicit "( )" to separate them
+            })
+            .join(' | ') || 'never';
 
         res[typeName] = possibleTypes;
       }

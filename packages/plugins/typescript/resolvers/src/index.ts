@@ -285,9 +285,9 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
     prepend,
     content: [
       header,
-      resolversInterfaceTypesMapping,
       resolversUnionTypesMapping,
       resolversUnionParentTypesMapping,
+      resolversInterfaceTypesMapping,
       resolversTypeMapping,
       resolversParentTypeMapping,
       ...visitorResult.definitions.filter(d => typeof d === 'string'),
