@@ -763,12 +763,6 @@ export class BaseResolversVisitor<
       if (isMapped && this.config.mappers[typeName].type && !hasPlaceholder(this.config.mappers[typeName].type)) {
         this.markMapperAsUsed(typeName);
         prev[typeName] = applyWrapper(this.config.mappers[typeName].type);
-      } else if (isInterfaceType(schemaType)) {
-        this._hasReferencedResolversInterfaceTypes = true;
-        const type = this.convertName('ResolversInterfaceTypes');
-        const generic = this.convertName(currentType);
-        prev[typeName] = applyWrapper(`${type}<${generic}>['${typeName}']`);
-        return prev;
       } else if (isEnumType(schemaType) && this.config.enumValues[typeName]) {
         prev[typeName] =
           this.config.enumValues[typeName].sourceIdentifier ||
@@ -777,6 +771,12 @@ export class BaseResolversVisitor<
         prev[typeName] = applyWrapper(this.config.defaultMapper.type);
       } else if (isScalar) {
         prev[typeName] = applyWrapper(this._getScalar(typeName));
+      } else if (isInterfaceType(schemaType)) {
+        this._hasReferencedResolversInterfaceTypes = true;
+        const type = this.convertName('ResolversInterfaceTypes');
+        const generic = this.convertName(currentType);
+        prev[typeName] = applyWrapper(`${type}<${generic}>['${typeName}']`);
+        return prev;
       } else if (isUnionType(schemaType)) {
         if (referencedUnionType === 'ResolversUnionTypes') {
           this._hasReferencedResolversUnionTypes = true;
