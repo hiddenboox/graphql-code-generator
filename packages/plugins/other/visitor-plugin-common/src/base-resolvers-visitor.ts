@@ -968,7 +968,7 @@ export class BaseResolversVisitor<
         const possibleTypes =
           implementingTypes
             .map(type => {
-              // TODO: eddeee888 maybe extract this
+              // TODO: eddeee888 extract this and apply to ResolversUnionTypes
               const isTypeMapped = this.config.mappers[type.name];
               // 1. If mapped without placehoder, just use it without doing extra checks
               if (isTypeMapped && !hasPlaceholder(isTypeMapped.type)) {
@@ -985,7 +985,7 @@ export class BaseResolversVisitor<
               const fieldsToOmit = this.getRelevantFieldsToOmit({
                 schemaType: type,
                 getTypeToUse: baseType => `RefType['${baseType}']`,
-              }); // TODO: eddeee888 check this getTypeToUse type!!!
+              });
               if (fieldsToOmit.length > 0) {
                 typeValue = this.replaceFieldsInType(typeValue, fieldsToOmit);
               }
